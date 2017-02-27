@@ -1,0 +1,152 @@
+## Behavioral Cloning Report
+
+**Jakrin Juangbhanich, March 2017**
+
+
+
+**Behavioral Cloning Project**
+
+The goals / steps of this project are the following:
+
+- Use the simulator to collect data of good driving behavior
+- Build, a convolution neural network in Keras that predicts steering angles from images
+- Train and validate the model with a training and validation set
+- Test that the model successfully drives around track one without leaving the road
+- Summarize the results with a written report
+
+## Rubric Points
+
+### Files Submitted & Code Quality
+
+#### 1. Submission includes all required files and can be used to run the simulator in autonomous mode
+
+My project includes the following files:
+
+- model.py containing the script to create and train the model.
+- drive.py for driving the car in autonomous mode.
+- model.h5 containing a trained convolution neural network.
+- writeup_report.md or writeup_report.pdf summarizing the results.
+  ​
+
+#### 2. Submission includes functional code
+
+Using the Udacity provided simulator and my drive.py file, the car can be driven autonomously around the track by executing
+
+```
+python drive.py model.h5
+```
+
+#### 3. Submission code is usable and readable
+
+The model.py file contains the code for training and saving the convolution neural network. The file shows the pipeline I used for training and validating the model, and it contains comments to explain how the code works. There is some preprocessing in the model (reducing the image size to 100x100) so I updated drive.py to run the same process on the images that it feeds into the model as well.
+
+I also used a generator to feed the inputs into the model for training. The generator also flips each input once.
+
+### Model Architecture and Training Strategy
+
+#### 1. An appropriate model architecture has been employed
+
+For this task, I followed the advice in the lecture and used NVidia's model architecture to train my model. It made more sense than LeNet or one of the ImageNet models to start with this one, because this model was used by NVidia for the purpose of self driving cars.
+
+https://devblogs.nvidia.com/parallelforall/wp-content/uploads/2016/08/cnn-architecture-624x890.png
+
+So I set up the same network. It has a Lamba layer at the start to normalize all the inputs, then 5x Conv2D layers with RELU activation and MaxPooling to learn the features. It is then flattened, and has 5x Dense layers leading up to the final prediction.
+
+#### 2. Attempts to reduce overfitting in the model
+
+The model contains dropout layers in order to reduce overfitting. The dropouts were only used between the Dense layers, and at 35%. This was just a product of trial and error. I found this value worked better than an aggressive 50% dropout.
+
+The model was trained and validated on different data sets to ensure that the model was not overfitting. I used the train_test_split function to extract a random 15% sample of my test set into a validation set, which I then used to validate the model.
+
+#### 3. Model parameter tuning
+
+The model used an adam optimizer, so the learning rate was not tuned manually.
+
+#### 4. Appropriate training data
+
+Training data was chosen to keep the vehicle driving on the road. I used a combination of center lane driving, recovering from the left and right sides of the road ...
+
+For details about how I created the training data, see the next section.
+
+### Model Architecture and Training Strategy
+
+#### 1. Solution Design Approach
+
+The overall strategy for deriving a model architecture was to find an existing solution that comes close to solving the problem, and then adding on to it.
+
+My first step was to use a convolution neural network model similar to the NVidia Self Driving car network: 
+
+https://devblogs.nvidia.com/parallelforall/wp-content/uploads/2016/08/cnn-architecture-624x890.png
+
+I thought this was appropriate because it looks straightforward, I can understand it completely, and it was also developed for the same purpose - to train a self driving car.
+
+To combat the overfitting, I used initially used 4x  50% dropout layers between the Dense layers.
+
+The final step was to run the simulator to see how well the car was driving around track one. I noticed it kept trying to turn left, and didn't do well on the corners. I then augmented the training set a bit differently, and reduced the dropout layers to 3x 35%. There was a massive improvement. I think in the first case my dropouts were too aggressive, but also there was not enough training data for learning how to turn corners.
+
+At the end of the process, the vehicle is able to drive autonomously around the track without leaving the road.
+
+#### 2. Final Model Architecture
+
+The final model architecture (model.py lines X-Y) consisted of a convolution neural network with the following layers and layer output shapes:
+
+Lambda (100, 100, 3) - Normalize the input values.
+Convolution2D (100, 100, 24)
+MaxPooling2D (50, 50, 24)
+Convolution2D (50, 50, 36)
+MaxPooling2D (25, 25, 36)
+Convolution2D (25, 25, 48)
+MaxPooling2D (12, 12, 48)
+Convolution2D (12, 12, 64)
+MaxPooling2D (6, 6, 64)
+Convolution2D (6, 6, 64)
+MaxPooling2D (3, 3, 64)
+Flatten (576)
+Dense (1164)
+Dropout 35% (1164)
+Dense (100)
+Dropout  35% (100)
+Dense (None, 50)
+Dropout  35% ( 50)
+Dense (10)
+Dense (1)
+
+Also the layers use RELU activation, because I want to classify the features. The final layer uses linear activation because I want to use regression to find a prediction value between -1 and 1.
+
+I had to use SAME padding for the Conv2d layers otherwise I lose too many inputs and my output size just becomes 0. You can already see, my final 2D layer is reduced to 3x3 size. This is because I reduced the image input size down to 100x100, from 160x320. I only did this because I wanted it to train faster on my GPU. But also, since this is about 'seeing' the road and not small symbols and signs, so I thought not all the detail in the 160x320 is needed.
+
+I also wish to include a cropping layer, since I think the sky is quite irrelevant, but I kept getting an error from CUDN (which I think was actually a bug) when I tried to train the network, so I had to abandon the idea in the interest of time.
+
+#### 3. Creation of the Training Set & Training Process
+
+I actually used the training set provided by Udacity instead of recording my own. I didn't have a joystick so I could not capture good results on my own - this is something I look forward to doing later (and also so I can capture Track 2 as a training set) but in the interest of time, I decided to submit with the pre-collected data for now.
+
+I used data from the left and right cameras as well, to help the car stay in the center of the road. I added an offset of +/- 0.3 to the steering angle for these side cameras. I got this idea from the lessons, and also from reading the Slack channels. The idea makes sense, because it gives the model more information on what to do if it is near the edge of a road. 0.5 offset was too aggressive, and 0.2 felt a bit weak, so my best result was actually with 0.3.
+
+
+
+![center_cam](images\center_cam.jpg) The center camera: No offset applied.
+
+![left_cam](images\left_cam.jpg) Left camera: Steering angle offset by + 0.3.
+
+![right_cam](images\right_cam.jpg) Right camera: Steering angle offset by - 0.3.
+
+
+
+To augment the data sat, I flipped all the images at least once. The first track is very left-turn biased, so I wanted to make sure there was good data for right turns as well.
+
+After flipping, I had about 48000 number of data points. I randomly shuffled the data set and put 15% of the data into a validation set. Why so little? Because I felt my dataset was small and so I was more concerned about underfitting rather than over fitting. 
+
+The validation data scored even better than the training data, so it seems the model was not over fitting.
+
+I used an adam optimizer so that manually training the learning rate wasn't necessary.
+
+At first I trained on 5 epochs, but looking at the loss after each epoch, it seemed most of the improvements happened in the first 2 epochs. So for now, I decided to stick with 2 epochs (it is also faster to train and test new ideas).
+
+#### Notes
+
+This was a very hard project for me, but I think most of it was technical difficulty (most of the time was spent trying to set up my IDE, environment, Theano backend for GPU processing). I was already pressed on time so I didn't get to experiment with all the ideas that I wanted to.
+
+If I make it through this term later, I will surely come back and work on this more to get the car driving on track 2, faster, and also for me to develop a better intuition on this problem. I also didn't get to try using Feature Extraction technique for this project (but maybe this is not appropriate, since ImageNet has every type of object, whereas here we have mostly roads).
+
+But at the end of the day, it has been SO much fun and I'm glad to be a part of this journey.
